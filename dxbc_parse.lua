@@ -24,14 +24,22 @@ local pass = (space+line)^0
 local _dec = R('09')
 local _int = _dec^1
 local _float = P('-')^-1 * _dec^1 * (P('.')^-1 * _dec^0)^-1
-local number = C(_float)/
-    function(...)
-        return tonumber(...)
-    end
 
 local _alpha = R('az', 'AZ')
 local _alpnum = _alpha+_dec
-local variable = (_alpnum + P'_')^1
+
+local number = C(_float)/function(...)
+        return tonumber(...)
+    end
+
+local _hex = (P('0x') + P('0X')) * (_alpnum^1)
+local hex = C(_hex)/function(...)
+        return ...
+    end
+
+print(lpeg.match(hex, '0x3f0000'))
+
+local variable = (_alpnum + S'_')^1
 
 local comment = P'//' * C(P(1-P'\n')^0) / function(comment)
         return {comment = comment}
@@ -62,9 +70,14 @@ local _var_suffix = P'.' * C(_alpha^1) / function(var_suffix)
         return {suffix = var_suffix}
     end
 
-local _vector = P'l(' * number * (pass*P','*pass * number)^0 *P')' / function(...)
+local _vector = P'l(' * (hex+number) * (pass*P','*pass * (hex+number))^0 *P')' / function(...)
         return {vals = {...}}
     end
+    --_vector = P'l(' * (hex+number) * (pass*P','*pass * hex)^0*P')'/ function(...)
+    --    return {vals = {...}}
+    --end
+
+--print(DataDump({lpeg.match(C(_vector), 'l(0x0a,0x12,0x12)')}))
 
 local function merge_tbl(...)
     local ret = {}
@@ -76,17 +89,26 @@ local function merge_tbl(...)
     return ret
 end
 
-local var = (_negtive^-1*_vector + _negtive^-1 * _var_name * _var_idx^-1 * _var_suffix^-1) / merge_tbl
+local _abs = C'|' / function()
+        return {abs=true}
+    end
+
+-- TODO abs process
+local var = (_negtive^-1*_vector + _negtive^-1 * _abs^-1
+                * _var_name * _var_idx^-1 * _var_suffix^-1 * _abs^-1) / merge_tbl
 
 local args = var * (space^0*P(",")*space^0 *var)^0
 
-local command = op * space ^0 * args^-1 / function(...)
+local command = C(op * space ^0 * args^-1) / function(...)
         local data = {...}
-        local op_name = data[1]
+        local src = data[1]
+        local op_name = data[2]
+        table.remove(data, 1)
         table.remove(data, 1)
         return {
             op = op_name,
             args = data,
+            src = src,
         }
     end
 
@@ -104,7 +126,7 @@ function patt(p, name)
 end
 local cbuffer_var = patt('row_major', 'prefix')^-1 * patt(variable, 'type')* patt(variable, 'name')
             * P('['*(patt(number, 'size')*P']'))^-1 * P';'* pass * P'// Offset:' * pass * patt(number, 'offset')
-            * P'Size:' * pass * patt(number, 'size') * P(1-P('\n'))^0 / merge_tbl
+            * P'Size:' * pass * patt(number, 'size') * P('[unused]')^-1 / merge_tbl
 local cbclass = pass*P('cbuffer') * patt(variable, 'cbuffer_name') *
                     pass * P'{' * pass * cbuffer_var^1 *pass * '}' / function(...)
                     local data = {...}
@@ -115,32 +137,23 @@ local cbclass = pass*P('cbuffer') * patt(variable, 'cbuffer_name') *
                     end
                     return cbuffer
                 end
-                --[=[
+
+--[=[
 local input = [[
- cbuffer CBUSE_UB_LOCAL_MATRIX_IDX
- {
-   row_major float4x4 u_mtxLW;        // Offset:    0 Size:    64 [unused]
-   row_major float4x4 u_mtxLV;        // Offset:   64 Size:    64 [unused]
-   row_major float4x4 u_mtxLP;        // Offset:  128 Size:    64
-   row_major float4x4 u_mtxLWOld;     // Offset:  192 Size:    64 [unused]
-   row_major float4x4 u_mtxLVOld;     // Offset:  256 Size:    64 [unused]
- }
- cbuffer CBUSE_UB_MODEL_MATERIAL_IDX
- {
-   float2 u_symFlag;                  // Offset:    0 Size:     8 [unused]
-   int u_meshId;                      // Offset:    8 Size:     4 [unused]
-   float u_alphaTestRef;              // Offset:   12 Size:     4
-   float4 u_diffuse;                  // Offset:   16 Size:    16
-   float4 u_ambient;                  // Offset:   32 Size:    16
-   float4 u_speculer;                 // Offset:   48 Size:    16 [unused]
-   row_major float2x3 u_texProj[6];   // Offset:   64 Size:   188
-   float4 u_uvRange[6];               // Offset:  256 Size:    96 [unused]
- }
-]]
-print(DataDump({lpeg.match(cbclass^0, input)}))
---]=]
+cbuffer GlobalPS
+{
+  float4 CameraPosPS;                // Offset:    0 Size:    16 [unused]
+  float4 CameraInfoPS;               // Offset:   16 Size:    16 [unused]
+}
+ ]]
+ --]=]
+
+
+--print(DataDump({lpeg.match(cbclass^0, input)}))
+
 
 local function process_cbuffer(str)
+    --print(str)
     return {lpeg.match(cbclass^0, str)}
 end
 
