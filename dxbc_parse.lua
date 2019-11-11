@@ -47,8 +47,12 @@ local comment = P'//' * C(P(1-P'\n')^0) / function(comment)
 
 local discard = P(comment*pass)^0
 
+local function any_patt(expect)
+    return P(1-P(expect))^1
+end
+
 -- add|dcl_resource_texture2d (float,float,float,float)|sample_indexable(texture2d)(float,float,float,float)
-local op = C(variable * (space^-1 * (P'('*variable*P')')^-1 * (P'('*variable*(P(',')*variable)^0*P')' + P'linear'))^-1)
+local op = C(variable * (space^-1 * (P'('*any_patt(')')*P')') + ' linear' + ' noperspective')^0)
 
 local _negtive = C('-') / function (neg)
         if neg then
@@ -62,7 +66,8 @@ local _var_name = C(variable) / function(var_name)
         return {name = var_name}
     end
 
-local _var_idx = P'[' * number * P']' / function(var_idx)
+local _var_idx_patt = C((_alpnum+S'_+ .')^1)
+local _var_idx = P'[' * _var_idx_patt * P']' / function(var_idx)
         return {idx = var_idx}
     end
 

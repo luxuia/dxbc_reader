@@ -1,11 +1,11 @@
 
-local DEBUG=true
+local DEBUG=false
 
 local parser = require 'dxbc_parse'
 local DataDump = require 'table_dumper'
 
 --local file_name = 'fragment.dxbc'
-local file_name = 'fragment2.txt'
+local file_name = 'fragment4.txt'
 
 local _format = string.format
 
@@ -60,7 +60,6 @@ end
 local function cal_offset(register)
     local name = register.name
     local bind_data = bind_map[name]
-    local suffix = register.suffix
     if bind_data and register.idx then
         return register.idx*16 + var_mask_map[string.sub(register.suffix, 1, 1)]
     end
@@ -68,6 +67,8 @@ local function cal_offset(register)
 end
 
 local function get_var_mask(register, mask_register)
+    if not mask_register.suffix then return register.suffix end
+
     local mask = mask_register.suffix
     local mask_idx = {}
     for i=1, #mask do
@@ -100,22 +101,43 @@ local function get_var_name(register, swizzle, sep_suffix)
         name = bind_data.name
         local desc = bind_data.desc
         if register.idx then
-            local target_offset = cal_offset(register)
-            local target_idx
-            for i=#desc, 1, -1 do
-                if desc[i].offset <= target_offset then
-                    target_idx = i
-                    break
+            if type(register.idx) == 'number' then
+                local target_offset = cal_offset(register)
+                local target_idx
+                for i=#desc, 1, -1 do
+                    if desc[i].offset <= target_offset then
+                        target_idx = i
+                        break
+                    end
                 end
-            end
-            assert(target_idx, 'cant find var offset' .. name)
-            suffix = desc[target_idx].name
-            if desc[target_idx].size > 16 then
-                suffix = _format('%s[%s]', suffix, (target_offset-desc[target_idx].offset)//16)
+                assert(target_idx, 'cant find var offset' .. name)
+                suffix = desc[target_idx].name
+                if desc[target_idx].size > 16 then
+                    suffix = _format('%s[%s]', suffix, (target_offset-desc[target_idx].offset)//16)
+                end
             end
         end
     end
-    suffix = suffix and suffix .. '.' .. reg_com or reg_com
+
+    local suffix_dot = '.'
+    if register.idx and type(register.idx) == 'string' then
+    -- CBUSE [param].x
+        suffix = _format('[%s]', register.idx)
+        suffix_dot = ''
+    end
+
+    if suffix and reg_com then
+    -- CBUSE . param.x
+        suffix = suffix .. '.' .. reg_com
+    elseif suffix then
+    -- CBUSE . param
+        suffix = suffix
+    elseif reg_com then
+        --CBUSE . x
+        suffix = reg_com
+    else
+        suffix_dot = ''
+    end
 
     if register.vals then
         local val_count = #register.vals
@@ -132,7 +154,7 @@ local function get_var_name(register, swizzle, sep_suffix)
 
     local ret
     if suffix then
-        ret = _format('%s.%s', name, suffix)
+        ret = _format('%s%s%s', name, suffix_dot, suffix)
     else
         ret = name
     end
@@ -158,27 +180,37 @@ local shader_def = {
             return _format('%s = dot(%s, %s)', namea, nameb, namec)
         end
     end,
-    mov = function(op_args, a, b)
-        return _format('%s = %s', get_var_name(a), get_var_name(b, a))
+    ['mov(.*)'] = function(op_args, a, b)
+        if op_args._sat then
+            return _format('%s = saturate(%s)', get_var_name(a), get_var_name(b, a))
+        else
+            return _format('%s = %s', get_var_name(a), get_var_name(b, a))
+        end
     end,
     movc = function(op_args, dest, cond, a, b)
         local n_dest= get_var_name(dest)
         local n_cond = get_var_name(cond, dest)
         local n_a = get_var_name(a, dest)
         local n_b = get_var_name(b, dest)
-        return _format('%s=%s?%s:%s', n_dest, n_cond, n_a, n_b)
+        return _format('%s = %s ? %s : %s', n_dest, n_cond, n_a, n_b)
     end,
-    add = function(op_args, a, b, c)
+    ['i?add(.*)'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b, a)
         local namec = get_var_name(c, a)
+        local ret
         if namec:sub(1,1) == '-' then
-            return _format('%s = %s%s', namea, nameb, namec)
+            ret = _format('%s%s', nameb, namec)
         else
-            return _format('%s = %s+%s', namea, nameb, namec)
+            ret = _format('%s + %s', nameb, namec)
+        end
+        if op_args._sat then 
+            return _format('%s = saturate(%s)', namea, ret)
+        else
+            return _format('%s = %s', namea, ret)
         end
     end,
-    ['mul(.*)'] = function(op_args, a, b, c)
+    ['i?mul(.*)'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b, a)
         local namec = get_var_name(c, a)
@@ -189,6 +221,12 @@ local shader_def = {
         end
     end,
     min = function(op_args, a, b, c)
+        local namea = get_var_name(a)
+        local nameb = get_var_name(b)
+        local namec = get_var_name(c)
+        return _format('%s = min(%s, %s)', namea, nameb, namec)
+    end,
+    umin = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b)
         local namec = get_var_name(c)
@@ -208,22 +246,47 @@ local shader_def = {
         return _format('%s = tex2D(%s, %s.%s).%s //sample_state %s',
                     n_dest, n_texture, n_addr, com_addr:sub(1, 2), com_texture, n_sampler)
     end,
-    mad = function(op_args, a, b, c, d)
+    ['ld_indexable.*'] = function(op_args, dest, addr, texture)
+        local n_dest = get_var_name(dest)
+        local n_addr, com_addr = get_var_name(addr, nil, true)
+        local n_texture, com_texture = get_var_name(texture, dest, true)
+        return _format('%s = tex2D(%s, %s.%s).%s //ld_indexable',
+                    n_dest, n_texture, n_addr, com_addr:sub(1, 2), com_texture)
+    end,
+    ['ld_structured.*'] = function(op_args, dest, addr, offset, texture)
+        local n_dest = get_var_name(dest)
+        local n_addr, com_addr = get_var_name(addr, nil, true)
+        local n_offset, com_offset = get_var_name(offset, nil, true)
+        local n_texture, com_texture = get_var_name(texture, dest, true)
+        return _format('%s = tex2D(%s, %s.%s+%s) //ld_structured',
+                    n_dest, n_texture, n_addr, com_addr:sub(1, 2), n_offset, com_texture)
+    end,
+    ['i?mad(.*)'] = function(op_args, a, b, c, d)
         local namea = get_var_name(a)
         local nameb = get_var_name(b, a)
         local namec = get_var_name(c, a)
         local named = get_var_name(d, a)
+        local ret
         if named:sub(1,1) == '-' then
-            return _format('%s = %s*%s%s', namea, nameb, namec, named)
+            ret = _format('%s%s', namec, named)
         else
-            return _format('%s = %s*%s+%s', namea, nameb, namec, named)
+            ret = _format('%s + %s', namec, named)
+        end
+        if op_args._sat then
+            return _format('%s = saturate(%s*%s)', namea, nameb, ret)
+        else
+            return _format('%s = %s*%s', namea, nameb, ret)
         end
     end,
-    div = function(op_args, a, b, c)
+    ['div(.*)'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b, a)
         local namec = get_var_name(c, a)
-        return _format('%s = %s/%s', namea, nameb, namec)
+        if op_args._sat then
+            return _format('%s = saturate(%s/%s)', namea, nameb, namec)
+        else
+            return _format('%s = %s/%s', namea, nameb, namec)
+        end
     end,
     ['deriv_rt(.)(.*)'] = function(op_args, a, b)
         local namea = get_var_name(a)
@@ -233,15 +296,21 @@ local shader_def = {
         if op_args._coarse then
             suffix = '_coarse'
         end
-        return _format('%s=dd%s%s(%s)', namea, axis, suffix, nameb)
+        return _format('%s = dd%s%s(%s)', namea, axis, suffix, nameb)
     end,
-    lt = function(op_args, a, b, c)
+    ['i?eq'] = function(op_args, a, b, c)
+        local namea = get_var_name(a)
+        local nameb = get_var_name(b)
+        local namec = get_var_name(c)
+        return _format('%s = %s == %s', namea, nameb, namec)
+    end,
+    ['i?lt'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b)
         local namec = get_var_name(c)
         return _format('%s = %s < %s', namea, nameb, namec)
     end,
-    ge = function(op_args, a, b, c)
+    ['i?ge'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b)
         local namec = get_var_name(c)
@@ -263,6 +332,43 @@ end]], namea)
             return 'discard'
         end
     end,
+    ['if(.*)'] = function(op_args, a)
+        local namea = get_var_name(a)
+        if op_args._z then
+            return _format('if (%s==0) {', namea), 'if'
+        elseif op_args._nz then
+            return _format('if (%s!=0) {', namea), 'if'
+        end
+    end,
+    ['else'] = function(op_args)
+        return '} else {', 'else'
+    end,
+    ['endif'] = function(op_args, a)
+        return '}', 'endif'
+    end,
+    ['break(.*)'] = function(op_args, a, b)
+        if not a then
+            return 'break', 'break'
+        end
+        local namea = get_var_name(a)
+        if op_args.c_z then
+            return _format('if (%s == 0) break', namea)
+        elseif op_args.c_nz then 
+            return _format('if (%s != 0) break', namea)
+        else
+            assert(false, 'break with args' .. DataDump(op_args))
+        end
+    end,
+    ['loop'] = function(op_args, a, b)
+        --local namea = get_var_name(a)
+        --local nameb = get_var_name(b, a)
+        return 'while(true) {', 'loop'
+    end,
+    ['endloop'] = function(op_args, a, b)
+        --local namea = get_var_name(a)
+        --local nameb = get_var_name(b, a)
+        return '}', 'endloop'
+    end,
     rsq = function(op_args, a, b)
         local namea = get_var_name(a)
         local nameb = get_var_name(b, a)
@@ -278,16 +384,47 @@ end]], namea)
         local nameb = get_var_name(b, a)
         return _format('%s = frac(%s)', namea, nameb)
     end,
+    rcp = function(op_args, a, b)
+        local namea = get_var_name(a)
+        local nameb = get_var_name(b, a)
+        return _format('%s = rcp(%s)', namea, nameb)
+    end, 
     exp = function(op_args, a, b)
         local namea = get_var_name(a)
         local nameb = get_var_name(b)
         return _format('%s = exp2(%s)', namea, nameb)
     end,
+    round_ni = function(op_args, a, b)
+        local namea = get_var_name(a)
+        local nameb = get_var_name(b)
+        return _format('%s = floor(%s) //round_ni', namea, nameb)
+    end,
+    ftoi = function(op_args, a, b)
+        local namea = get_var_name(a)
+        local nameb = get_var_name(b)
+        return _format('%s = floor(%s) //ftoi', namea, nameb)
+    end,
+    ftou = function(op_args, a, b)
+        local namea = get_var_name(a)
+        local nameb = get_var_name(b)
+        return _format('%s = floor(%s) //ftou', namea, nameb)
+    end,
+    itof = function(op_args, a, b)
+        local namea = get_var_name(a)
+        local nameb = get_var_name(b)
+        return _format('%s = %s // itof', namea, nameb)
+    end,
     ['and'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b)
         local namec = get_var_name(c)
-        return _format('%s = %s&%s', namea, nameb, namec)
+        return _format('%s = %s & %s', namea, nameb, namec)
+    end,
+    ['or'] = function(op_args, a, b, c)
+        local namea = get_var_name(a)
+        local nameb = get_var_name(b)
+        local namec = get_var_name(c)
+        return _format('%s = %s | %s', namea, nameb, namec)
     end,
     ret = function()
         return 'return out'
@@ -332,21 +469,78 @@ local function arr2dic(list)
     return dic
 end
 
+local BLOCK_DEF = {
+    ['if'] = {
+        start = 'if',
+        close = {['else']=true, endif=true},
+    },
+    ['else'] = {
+        start = 'else',
+        close = {endif=true},
+    },
+    ['loop'] = {
+        start = 'loop',
+        close = {endloop=true},
+    },
+    ['switch'] = {
+        start = 'switch',
+        close = {endswitch=true},
+    },
+    ['case'] = {
+        --[[
+            case can closed by self
+            switch a
+                case a
+                case b
+                    break
+            endswitch
+        ]]--
+        start = 'case',
+        close = {case=true, ['break']=true},
+    }
+}
+
 local translate = {}
 local idx = 2
 local line_id = 1
+local blocks = {}
+
+local function pre_process_command(command)
+    if command.args then
+        for _, reg in pairs(command.args) do
+            if reg.idx then
+                if tonumber(reg.idx) then
+                    reg.idx = tonumber(reg.idx)
+                end
+            end
+        end
+    end
+end
+
 while idx <= #parse_data do
     local command = parse_data[idx]
     if command.op then
         local op_name, op_param = get_op(command.op)
-            print(DataDump(command))
+           
         if op_name then
             local op_func = shader_def[op_name]
             if op_func then
+                pre_process_command(command)
+                print(DataDump(command))
                 op_param = op_param and arr2dic( op_param) or {}
-                local op_str = op_func(op_param, table.unpack(   command.args))
-                translate[#translate+1] = string.format('%s\t%s', line_id, op_str)
-                print(op_str)
+                local op_str, block_tag = op_func(op_param, table.unpack(   command.args))
+
+                local last_block = blocks[#blocks]
+                if last_block and last_block.close[block_tag] then
+                    table.remove(blocks, #blocks)
+                end
+
+                translate[#translate+1] = string.format('%s%s', string.rep('\t', #blocks), op_str)
+                print(translate[#translate])
+                                
+                if BLOCK_DEF[block_tag] then
+                    table.insert(blocks, BLOCK_DEF[block_tag])
+                end
                 if DEBUG then
                     translate[#translate+1] = command.src
                 end
