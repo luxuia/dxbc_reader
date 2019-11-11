@@ -171,21 +171,21 @@ m.shader_def = {
             return _format('%s = dot(%s, %s)', namea, nameb, namec)
         end
     end,
-    ['mov(.*)'] = function(op_args, a, b)
+    ['[d]?mov(.*)'] = function(op_args, a, b)
         if op_args._sat then
             return _format('%s = saturate(%s)', get_var_name(a), get_var_name(b, a))
         else
             return _format('%s = %s', get_var_name(a), get_var_name(b, a))
         end
     end,
-    movc = function(op_args, dest, cond, a, b)
+    ['[d]?movc'] = function(op_args, dest, cond, a, b)
         local n_dest= get_var_name(dest)
         local n_cond = get_var_name(cond, dest)
         local n_a = get_var_name(a, dest)
         local n_b = get_var_name(b, dest)
         return _format('%s = %s ? %s : %s', n_dest, n_cond, n_a, n_b)
     end,
-    ['i?add(.*)'] = function(op_args, a, b, c)
+    ['[di]?add(.*)'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b, a)
         local namec = get_var_name(c, a)
@@ -201,7 +201,7 @@ m.shader_def = {
             return _format('%s = %s', namea, ret)
         end
     end,
-    ['i?mul(.*)'] = function(op_args, a, b, c)
+    ['[uid]?mul(.*)'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b, a)
         local namec = get_var_name(c, a)
@@ -211,23 +211,27 @@ m.shader_def = {
             return _format('%s = %s*%s', namea, nameb, namec)
         end
     end,
-    min = function(op_args, a, b, c)
+    ['[uid]?min'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b)
         local namec = get_var_name(c)
         return _format('%s = min(%s, %s)', namea, nameb, namec)
     end,
-    umin = function(op_args, a, b, c)
-        local namea = get_var_name(a)
-        local nameb = get_var_name(b)
-        local namec = get_var_name(c)
-        return _format('%s = min(%s, %s)', namea, nameb, namec)
-    end,
-    max = function(op_args, a, b, c)
+    ['[uid]?max'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b)
         local namec = get_var_name(c)
         return _format('%s = max(%s, %s)', namea, nameb, namec)
+    end,
+    ['sincos(.*)'] = function(op_args, a, b, c)
+        local namea = get_var_name(a)
+        local nameb = get_var_name(b)
+        local namec = get_var_name(c)
+        if op_args._sat then
+            return _format('%s = saturate(sin(%s)); %s = saturate(cos(%s))', namea, nameb, namea, namec)
+        else
+            return _format('%s = sin(%s); %s=cos(%s)', namea, nameb, namea, namec)
+        end
     end,
     ['sample.*'] = function(op_args, dest, addr, texture, sampler)
         local n_dest = get_var_name(dest)
@@ -252,7 +256,7 @@ m.shader_def = {
         return _format('%s = tex2D(%s, %s.%s+%s) //ld_structured',
                     n_dest, n_texture, n_addr, com_addr:sub(1, 2), n_offset, com_texture)
     end,
-    ['i?mad(.*)'] = function(op_args, a, b, c, d)
+    ['[ui]?mad(.*)'] = function(op_args, a, b, c, d)
         local namea = get_var_name(a)
         local nameb = get_var_name(b, a)
         local namec = get_var_name(c, a)
@@ -269,7 +273,7 @@ m.shader_def = {
             return _format('%s = %s*%s', namea, nameb, ret)
         end
     end,
-    ['div(.*)'] = function(op_args, a, b, c)
+    ['[du]?div(.*)'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b, a)
         local namec = get_var_name(c, a)
@@ -289,36 +293,53 @@ m.shader_def = {
         end
         return _format('%s = dd%s%s(%s)', namea, axis, suffix, nameb)
     end,
-    ['i?eq'] = function(op_args, a, b, c)
+    ['[di]?eq'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b)
         local namec = get_var_name(c)
         return _format('%s = %s == %s', namea, nameb, namec)
     end,
-    ['i?lt'] = function(op_args, a, b, c)
+    ['[di]?ne'] = function(op_args, a, b, c)
+        local namea = get_var_name(a)
+        local nameb = get_var_name(b)
+        local namec = get_var_name(c)
+        return _format('%s = %s != %s', namea, nameb, namec)
+    end,
+    ['not'] = function(op_args, a, b)
+        local namea = get_var_name(a)
+        local nameb = get_var_name(b)
+        return _format('%s = !%s', namea, nameb, namec)
+    end,
+    ['[uid]?lt'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b)
         local namec = get_var_name(c)
         return _format('%s = %s < %s', namea, nameb, namec)
     end,
-    ['i?ge'] = function(op_args, a, b, c)
+    ['[uid]?ge'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b)
         local namec = get_var_name(c)
         return _format('%s = %s >= %s', namea, nameb, namec)
     end,
+    ['[ui]?shl'] = function(op_args, a, b, c)
+        local namea = get_var_name(a)
+        local nameb = get_var_name(b)
+        local namec = get_var_name(c)
+        return _format('%s = %s << %s', namea, nameb, namec)
+    end,
+    ['[ui]?shr'] = function(op_args, a, b, c)
+        local namea = get_var_name(a)
+        local nameb = get_var_name(b)
+        local namec = get_var_name(c)
+        return _format('%s = %s >> %s', namea, nameb, namec)
+    end,
     ['discard(.*)'] = function(op_args, a)
         local namea = get_var_name(a)
         if op_args._z == '_z' then
-            return string.format([[
-if (%s == 0) then
-    discard;
-end]], namea)
+            return string.format('if (%s == 0) discard', namea)
         elseif op_args._nz then
-            return string.format([[
-if (%s != 0) then
-    discard;
-end]], namea)
+            return string.format('if (%s != 0) discard', namea)
         else
             return 'discard'
         end
@@ -360,6 +381,19 @@ end]], namea)
         --local nameb = get_var_name(b, a)
         return '}', 'endloop'
     end,
+    ['continue(.*)'] = function(op_args, a, b)
+        if not a then
+            return 'continue'
+        end
+        local namea = get_var_name(a)
+        if op_args.c_z then
+            return _format('if (%s == 0) continue', namea)
+        elseif op_args.c_nz then 
+            return _format('if (%s != 0) continue', namea)
+        else
+            assert(false, 'continue with args' .. DataDump(op_args))
+        end
+    end,
     rsq = function(op_args, a, b)
         local namea = get_var_name(a)
         local nameb = get_var_name(b, a)
@@ -375,7 +409,7 @@ end]], namea)
         local nameb = get_var_name(b, a)
         return _format('%s = frac(%s)', namea, nameb)
     end,
-    rcp = function(op_args, a, b)
+    ['[d]?rcp'] = function(op_args, a, b)
         local namea = get_var_name(a)
         local nameb = get_var_name(b, a)
         return _format('%s = rcp(%s)', namea, nameb)
@@ -415,7 +449,7 @@ end]], namea)
         local nameb = get_var_name(b)
         return _format('%s = floor(%s) //ftou', namea, nameb)
     end,
-    itof = function(op_args, a, b)
+    ['[uid]?tof'] = function(op_args, a, b)
         local namea = get_var_name(a)
         local nameb = get_var_name(b)
         return _format('%s = %s // itof', namea, nameb)
@@ -432,8 +466,21 @@ end]], namea)
         local namec = get_var_name(c)
         return _format('%s = %s | %s', namea, nameb, namec)
     end,
-    ret = function()
-        return 'return out'
+    ['xor'] = function(op_args, a, b, c)
+        local namea = get_var_name(a)
+        local nameb = get_var_name(b)
+        local namec = get_var_name(c)
+        return _format('%s = %s ^ %s', namea, nameb, namec)
+    end,
+    ['ret(.*)'] = function(op_args, a)
+        if op_args.c_z then
+            local namea = get_var_name(a)
+            return _format('if (%s == 0) return', namea)
+        elseif op_args.c_nz then
+            local namea = get_var_name(a)
+            return _format('if (%s != 0) return', namea)
+        end
+        return 'return'
     end,
     ['vs_%d_%d'] = false,
     ['ps_%d_%d'] = false,

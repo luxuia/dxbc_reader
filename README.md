@@ -1,3 +1,13 @@
+[feature]
+    FULL sm4.0 support(little sm5.0)
+    easy to use & easy to read
+
+[usage]
+    .\lua\lua.exe fragment.txt -o dxbc.out
+
+    -o output [output filename]
+    -d true   [enable debug info]
+
 translate DXBC code like:
 
     dp4 r0.x, cb2[8].xyzw, v0.xyzw

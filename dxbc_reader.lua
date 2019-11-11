@@ -1,13 +1,24 @@
 
-local DEBUG=false
 
 local DataDump = require 'table_dumper'
+
+
+local argparse = require 'argparse'
+local arg_parse = argparse('dxbc_reader')
+
+arg_parse:argument('input', 'input file')
+arg_parse:option('-o --output', 'output file', 'dxbc.out')
+arg_parse:option('-d --debug', 'print debug info', false)
+
+local args = arg_parse:parse()
+
+local DEBUG=args.debug
 
 local parser = require 'dxbc_parse'
 local dxbc_def = require 'dxbc_def'
 
 --local file_name = 'fragment.dxbc'
-local file_name = 'fragment4.txt'
+local file_name = args.input or 'fragment4.txt'
 
 local _format = string.format
 
@@ -99,8 +110,8 @@ while idx <= #parse_data do
         if op_name then
             local op_func = dxbc_def.shader_def[op_name]
             if op_func then
-                pre_process_command(command)
-                print(DataDump(command))
+                --pre_process_command(command)
+                --print(DataDump(command))
                 op_param = op_param and arr2dic( op_param) or {}
                 local op_str, block_tag = op_func(op_param, table.unpack(   command.args))
 
@@ -109,14 +120,15 @@ while idx <= #parse_data do
                     table.remove(blocks, #blocks)
                 end
 
+                if DEBUG then
+                    translate[#translate+1] = ''
+                    translate[#translate+1] = command.src
+                end
                 translate[#translate+1] = string.format('%s%s', string.rep('\t', #blocks), op_str)
-                print(translate[#translate])
+                --print(translate[#translate])
                                 
                 if BLOCK_DEF[block_tag] then
                     table.insert(blocks, BLOCK_DEF[block_tag])
-                end
-                if DEBUG then
-                    translate[#translate+1] = command.src
                 end
                 line_id = line_id+1
             end
@@ -130,4 +142,4 @@ end
 local ret = table.concat(translate, '\n')
 print(ret)
 
-io.open(file_name .. '.out', 'w'):write(ret)
+io.open(args.output, 'w'):write(ret)
