@@ -163,8 +163,8 @@ end
 m.shader_def = {
     ['dp%d(.*)'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
-        local nameb = get_var_name(b, a)
-        local namec = get_var_name(c, a)
+        local nameb = get_var_name(b)
+        local namec = get_var_name(c)
         if op_args._sat then
             return _format('%s = saturate(dot(%s, %s))', namea, nameb, namec)
         else

@@ -110,8 +110,7 @@ while idx <= #parse_data do
         if op_name then
             local op_func = dxbc_def.shader_def[op_name]
             if op_func then
-                --pre_process_command(command)
-                --print(DataDump(command))
+                pre_process_command(command)
                 op_param = op_param and arr2dic( op_param) or {}
                 local op_str, block_tag = op_func(op_param, table.unpack(   command.args))
 
@@ -122,6 +121,7 @@ while idx <= #parse_data do
 
                 if DEBUG then
                     translate[#translate+1] = ''
+                    --translate[#translate+1] = DataDump(command)
                     translate[#translate+1] = command.src
                 end
                 translate[#translate+1] = string.format('%s%s', string.rep('\t', #blocks), op_str)
