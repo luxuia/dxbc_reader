@@ -85,11 +85,6 @@ local BLOCK_DEF = {
     }
 }
 
-local translate = {}
-local idx = 2
-local line_id = 1
-local blocks = {}
-
 local function pre_process_command(command)
     if command.args then
         for _, reg in pairs(command.args) do
@@ -101,6 +96,49 @@ local function pre_process_command(command)
         end
     end
 end
+
+local translate = {}
+local idx = 2
+local line_id = 1
+local blocks = {}
+
+local res_def = parse_data[1]
+
+local function append(msg)
+    translate[#translate+1] = msg
+end
+
+for _, cbuff in pairs(res_def.cbuff_data) do
+    append('class ' .. cbuff.cbuffer_name .. '{')
+    for _, var in pairs(cbuff.vars) do
+        append(_format('\t%s\t%s;', var.type, var.name))
+    end
+    append('}')
+end
+
+local _tex_reg_cnt = 1
+append('class INPUT {')
+for _, var in pairs(res_def.input_data) do
+    if var.name == 'TEXCOORD' then
+        append('\t' .. var.name .. _tex_reg_cnt .. ';')
+        _tex_reg_cnt = _tex_reg_cnt+1
+    else
+        append('\t' .. var.name.. ';')
+    end
+end
+append('}')
+
+_tex_reg_cnt=1
+append('class OUT {')
+for _, var in pairs(res_def.output_data) do
+    if var.name == 'TEXCOORD' then
+        append('\t' .. var.name .. _tex_reg_cnt.. ';')
+        _tex_reg_cnt = _tex_reg_cnt+1
+    else
+        append('\t' .. var.name .. ';')
+    end
+end
+append('}')
 
 while idx <= #parse_data do
     local command = parse_data[idx]
@@ -120,11 +158,11 @@ while idx <= #parse_data do
                 end
 
                 if DEBUG then
-                    translate[#translate+1] = ''
+                    append('')
                     --translate[#translate+1] = DataDump(command)
-                    translate[#translate+1] = command.src
+                    append(command.src)
                 end
-                translate[#translate+1] = string.format('%s%s', string.rep('\t', #blocks), op_str)
+                append(string.format('%s%s', string.rep('\t', #blocks), op_str))
                 --print(translate[#translate])
                                 
                 if BLOCK_DEF[block_tag] then

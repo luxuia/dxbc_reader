@@ -80,6 +80,28 @@ local function get_var_mask(register, mask_register)
     return table.concat(suffix)
 end
 
+local function get_vec_mask(vals, mask_register)
+    if not mask_register.suffix then return vals end
+
+    local mask = mask_register.suffix
+    local mask_idx = {}
+    for i=1, #mask do
+        mask_idx[i] = var_mask_idx[mask:sub(i, i)]
+    end
+    local suffix = {}
+
+    local last_com = vals[#vals]
+    for i=1, #mask_idx do
+        local idx = mask_idx[i]
+        if idx > #vals then
+            suffix[i] = last_com
+        else
+            suffix[i] = vals[idx]
+        end
+    end
+    return suffix
+end
+
 local function get_var_name(register, swizzle, sep_suffix)
     local name = register.name
     local bind_data = bind_map[name]
@@ -131,11 +153,12 @@ local function get_var_name(register, swizzle, sep_suffix)
     end
 
     if register.vals then
-        local val_count = #register.vals
+        local vals = swizzle and get_vec_mask(register.vals, swizzle) or register.vals
+        local val_count = #vals
         if val_count == 1 then
-            name = tostring(register.vals[1])
+            name = tostring(vals[1])
         else
-            name = _format('float%s(%s)', val_count, table.concat(register.vals, ','))
+            name = _format('float%s(%s)', val_count, table.concat(vals, ','))
         end
     end
 
