@@ -5,7 +5,7 @@
 
 **[usage]**
 
-    .\lua\lua.exe fragment.txt -o dxbc.out
+    .\lua\lua.exe example/fragment.txt -o dxbc.out
 
     -o output [output filename]
     -d true   [enable debug info]
