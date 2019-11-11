@@ -1,8 +1,10 @@
-[feature]
+**[feature]**
+
     FULL sm4.0 support(little sm5.0)
     easy to use & easy to read
 
-[usage]
+**[usage]**
+
     .\lua\lua.exe fragment.txt -o dxbc.out
 
     -o output [output filename]
