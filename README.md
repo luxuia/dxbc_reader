@@ -12,6 +12,7 @@
 
 translate DXBC code like:
 
+```c
     dp4 r0.x, cb2[8].xyzw, v0.xyzw
     mov o0.x, r0.x
     dp4 r1.y, cb2[9].xyzw, v0.xyzw
@@ -27,10 +28,10 @@ translate DXBC code like:
     mul o1.xyz, r0.xxxx, r1.xyzx
     mov o1.w, r1.w
     mov o2.zw, l(0,0,0,0)
-
+```
 
 to:
-
+```c
     r0.x = dot(CBUSE_UB_LOCAL_MATRIX_IDX.u_mtxLP[0].x, in.POSITION.x)
     out.SV_Position.x = r0.x
     r1.y = dot(CBUSE_UB_LOCAL_MATRIX_IDX.u_mtxLP[1].y, in.POSITION.y)
@@ -46,3 +47,4 @@ to:
     out.TEXCOORD1.xyz = r0.xxx*r1.xyz
     out.TEXCOORD1.w = r1.w
     out.TEXCOORD2.zw = float4(0,0,0,0)
+```
