@@ -37,15 +37,11 @@ local hex = C(_hex)/function(...)
         return ...
     end
 
-print(lpeg.match(hex, '0x3f0000'))
-
 local variable = (_alpnum + S'_')^1
 
 local comment = P'//' * C(P(1-P'\n')^0) / function(comment)
         return {comment = comment}
     end
-
-local discard = P(comment*pass)^0
 
 local function any_patt(expect)
     return P(1-P(expect))^1
@@ -78,11 +74,6 @@ local _var_suffix = P'.' * C(_alpha^1) / function(var_suffix)
 local _vector = P'l(' * (hex+number) * (pass*P','*pass * (hex+number))^0 *P')' / function(...)
         return {vals = {...}}
     end
-    --_vector = P'l(' * (hex+number) * (pass*P','*pass * hex)^0*P')'/ function(...)
-    --    return {vals = {...}}
-    --end
-
---print(DataDump({lpeg.match(C(_vector), 'l(0x0a,0x12,0x12)')}))
 
 local function merge_tbl(...)
     local ret = {}
@@ -119,11 +110,8 @@ local command = C(op * space ^0 * args^-1) / function(...)
 
 local trunk = ((comment+command)*pass)^0
 
-local cbuffer_name = C((_alpnum)^1) / function(var_name)
-        return {name = var_name}
-    end
-
-function patt(p, name)
+----------------- CBUFFER START
+local function patt(p, name)
     return P(pass*C(p)*pass)/function(v)
             local numv = tonumber(v)
             return {[name] = numv or v}
@@ -142,6 +130,7 @@ local cbclass = pass*P('cbuffer') * patt(variable, 'cbuffer_name') *
                     end
                     return cbuffer
                 end
+---------------- CBUFFER END
 
 --[=[
 local input = [[
@@ -151,18 +140,17 @@ cbuffer GlobalPS
   float4 CameraInfoPS;               // Offset:   16 Size:    16 [unused]
 }
  ]]
+
+print(DataDump({lpeg.match(cbclass^0, input)}))
+
  --]=]
 
 
---print(DataDump({lpeg.match(cbclass^0, input)}))
-
-
 local function process_cbuffer(str)
-    --print(str)
     return {lpeg.match(cbclass^0, str)}
 end
 
-function split(inputstr, sep)
+local function split(inputstr, sep)
     if sep == nil then
         sep = "%s"
     end
@@ -218,13 +206,13 @@ return function(input)
         local ret = {}
         local first_op
         local comms = {}
-        for _, line in ipairs(_ret) do
-            if type(line) ~= 'table' or line.comment ~= '' then
-                if not first_op and type(line) == 'table' and line.comment then
-                    comms[#comms+1] = line.comment
+        for _, _line in ipairs(_ret) do
+            if type(_line) ~= 'table' or _line.comment ~= '' then
+                if not first_op and type(_line) == 'table' and _line.comment then
+                    comms[#comms+1] = _line.comment
                 else
                     first_op = true
-                    table.insert(ret, line)
+                    table.insert(ret, _line)
                 end
             end
         end

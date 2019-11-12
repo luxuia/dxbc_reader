@@ -158,7 +158,7 @@ local function get_var_name(register, swizzle, sep_suffix)
         if val_count == 1 then
             name = tostring(vals[1])
         else
-            name = _format('float%s(%s)', val_count, table.concat(vals, ','))
+            name = _format('float%s(%s)', val_count, table.concat(vals, ', '))
         end
     end
 
@@ -229,9 +229,9 @@ m.shader_def = {
         local nameb = get_var_name(b, a)
         local namec = get_var_name(c, a)
         if op_args._sat then
-            return _format('%s = saturate(%s*%s)', namea, nameb, namec)
+            return _format('%s = saturate(%s * %s)', namea, nameb, namec)
         else
-            return _format('%s = %s*%s', namea, nameb, namec)
+            return _format('%s = %s * %s', namea, nameb, namec)
         end
     end,
     ['[uid]?min'] = function(op_args, a, b, c)

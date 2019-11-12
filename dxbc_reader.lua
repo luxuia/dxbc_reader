@@ -108,6 +108,7 @@ local function append(msg)
     translate[#translate+1] = msg
 end
 
+------------  CBUFFER DEFINE
 for _, cbuff in pairs(res_def.cbuff_data) do
     append('class ' .. cbuff.cbuffer_name .. '{')
     for _, var in pairs(cbuff.vars) do
@@ -139,6 +140,7 @@ for _, var in pairs(res_def.output_data) do
     end
 end
 append('}')
+------------ CBUFFER DEFINE END
 
 while idx <= #parse_data do
     local command = parse_data[idx]
