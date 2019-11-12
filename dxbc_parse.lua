@@ -108,6 +108,8 @@ local command = C(op * space ^0 * args^-1) / function(...)
         }
     end
 
+--print(DataDump({lpeg.match(command, 'move x0[1].x, xxx')}))
+
 local trunk = ((comment+command)*pass)^0
 
 ----------------- CBUFFER START

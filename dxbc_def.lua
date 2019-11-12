@@ -110,6 +110,7 @@ local function get_var_name(register, swizzle, sep_suffix)
         reg_com = get_var_mask(register, swizzle)
     end
     local suffix
+    local suffix_dot = '.'
     if bind_data then
         name = bind_data.name
         local desc = bind_data.desc
@@ -130,10 +131,7 @@ local function get_var_name(register, swizzle, sep_suffix)
                 end
             end
         end
-    end
-
-    local suffix_dot = '.'
-    if register.idx and type(register.idx) == 'string' then
+    elseif register.idx then
     -- CBUSE [param].x
         suffix = _format('[%s]', register.idx)
         suffix_dot = ''
@@ -236,20 +234,20 @@ m.shader_def = {
     end,
     ['[uid]?min'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
-        local nameb = get_var_name(b)
-        local namec = get_var_name(c)
+        local nameb = get_var_name(b, a)
+        local namec = get_var_name(c, a)
         return _format('%s = min(%s, %s)', namea, nameb, namec)
     end,
     ['[uid]?max'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
-        local nameb = get_var_name(b)
-        local namec = get_var_name(c)
+        local nameb = get_var_name(b, a)
+        local namec = get_var_name(c, a)
         return _format('%s = max(%s, %s)', namea, nameb, namec)
     end,
     ['sincos(.*)'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
-        local nameb = get_var_name(b)
-        local namec = get_var_name(c)
+        local nameb = get_var_name(b, a)
+        local namec = get_var_name(c, a)
         if op_args._sat then
             return _format('%s = saturate(sin(%s)); %s = saturate(cos(%s))', namea, nameb, namea, namec)
         else
@@ -257,6 +255,8 @@ m.shader_def = {
         end
     end,
     ['sample.*'] = function(op_args, dest, addr, texture, sampler)
+        -- load texture data with sampler
+        -- dest = (texture[addr]+texture[addr+1])/2 -- example: linear sampler
         local n_dest = get_var_name(dest)
         local n_addr, com_addr = get_var_name(addr, nil, true)
         local n_texture, com_texture = get_var_name(texture, dest, true)
@@ -265,6 +265,8 @@ m.shader_def = {
                     n_dest, n_texture, n_addr, com_addr:sub(1, 2), com_texture, n_sampler)
     end,
     ['ld_indexable.*'] = function(op_args, dest, addr, texture)
+        -- load texture data 
+        --  dest = texture[addr]
         local n_dest = get_var_name(dest)
         local n_addr, com_addr = get_var_name(addr, nil, true)
         local n_texture, com_texture = get_var_name(texture, dest, true)
@@ -272,6 +274,8 @@ m.shader_def = {
                     n_dest, n_texture, n_addr, com_addr:sub(1, 2), com_texture)
     end,
     ['ld_structured.*'] = function(op_args, dest, addr, offset, texture)
+        -- load buffer data
+        -- dest = texture[addr+offset]
         local n_dest = get_var_name(dest)
         local n_addr, com_addr = get_var_name(addr, nil, true)
         local n_offset, com_offset = get_var_name(offset, nil, true)
@@ -359,7 +363,7 @@ m.shader_def = {
     end,
     ['discard(.*)'] = function(op_args, a)
         local namea = get_var_name(a)
-        if op_args._z == '_z' then
+        if op_args._z then
             return string.format('if (%s == 0) discard', namea)
         elseif op_args._nz then
             return string.format('if (%s != 0) discard', namea)
@@ -370,9 +374,9 @@ m.shader_def = {
     ['if(.*)'] = function(op_args, a)
         local namea = get_var_name(a)
         if op_args._z then
-            return _format('if (%s==0) {', namea), 'if'
+            return _format('if (%s == 0) {', namea), 'if'
         elseif op_args._nz then
-            return _format('if (%s!=0) {', namea), 'if'
+            return _format('if (%s != 0) {', namea), 'if'
         end
     end,
     ['else'] = function(op_args)
@@ -388,30 +392,26 @@ m.shader_def = {
         local namea = get_var_name(a)
         if op_args.c_z then
             return _format('if (%s == 0) break', namea)
-        elseif op_args.c_nz then 
+        elseif op_args.c_nz then
             return _format('if (%s != 0) break', namea)
         else
             assert(false, 'break with args' .. DataDump(op_args))
         end
     end,
-    ['loop'] = function(op_args, a, b)
-        --local namea = get_var_name(a)
-        --local nameb = get_var_name(b, a)
+    ['loop'] = function(op_args)
         return 'while(true) {', 'loop'
     end,
-    ['endloop'] = function(op_args, a, b)
-        --local namea = get_var_name(a)
-        --local nameb = get_var_name(b, a)
+    ['endloop'] = function(op_args)
         return '}', 'endloop'
     end,
-    ['continue(.*)'] = function(op_args, a, b)
+    ['continue(.*)'] = function(op_args, a)
         if not a then
             return 'continue'
         end
         local namea = get_var_name(a)
         if op_args.c_z then
             return _format('if (%s == 0) continue', namea)
-        elseif op_args.c_nz then 
+        elseif op_args.c_nz then
             return _format('if (%s != 0) continue', namea)
         else
             assert(false, 'continue with args' .. DataDump(op_args))
@@ -436,7 +436,7 @@ m.shader_def = {
         local namea = get_var_name(a)
         local nameb = get_var_name(b, a)
         return _format('%s = rcp(%s)', namea, nameb)
-    end, 
+    end,
     exp = function(op_args, a, b)
         local namea = get_var_name(a)
         local nameb = get_var_name(b)
@@ -479,20 +479,24 @@ m.shader_def = {
     end,
     ['and'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
-        local nameb = get_var_name(b)
-        local namec = get_var_name(c)
-        return _format('%s = %s & %s', namea, nameb, namec)
+        local nameb = get_var_name(b, a)
+        local namec = get_var_name(c, a)
+        local comment = ''
+        if namec:find('0x3f800000') then
+            comment = _format('// 0x3f800000=1.0, maybe means: if (%s==0xFFFFFFFF) %s=1.0', nameb, namea)
+        end
+        return _format('%s = %s & %s %s', namea, nameb, namec, comment)
     end,
     ['or'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
-        local nameb = get_var_name(b)
-        local namec = get_var_name(c)
+        local nameb = get_var_name(b, a)
+        local namec = get_var_name(c, a)
         return _format('%s = %s | %s', namea, nameb, namec)
     end,
     ['xor'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
-        local nameb = get_var_name(b)
-        local namec = get_var_name(c)
+        local nameb = get_var_name(b, a)
+        local namec = get_var_name(c, a)
         return _format('%s = %s ^ %s', namea, nameb, namec)
     end,
     ['ret(.*)'] = function(op_args, a)

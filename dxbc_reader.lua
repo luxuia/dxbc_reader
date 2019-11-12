@@ -9,8 +9,13 @@ local arg_parse = argparse('dxbc_reader')
 arg_parse:argument('input', 'input file')
 arg_parse:option('-o --output', 'output file', 'dxbc.out')
 arg_parse:option('-d --debug', 'print debug info', false)
+arg_parse:option('-p --print', 'std print', true)
 
 local args = arg_parse:parse()
+
+if args.print == 'false' then
+    args.print = false
+end
 
 local DEBUG=args.debug
 
@@ -161,8 +166,8 @@ while idx <= #parse_data do
 
                 if DEBUG then
                     append('')
-                    --translate[#translate+1] = DataDump(command)
-                    append(command.src)
+                    translate[#translate+1] = string.rep('\t', #blocks) .. DataDump(command)
+                    append(string.rep('\t', #blocks) .. command.src)
                 end
                 append(string.format('%s%s', string.rep('\t', #blocks), op_str))
                 --print(translate[#translate])
@@ -180,6 +185,8 @@ while idx <= #parse_data do
 end
 
 local ret = table.concat(translate, '\n')
-print(ret)
+if args.print then
+    print(ret)
+end
 
 io.open(args.output, 'w'):write(ret)
