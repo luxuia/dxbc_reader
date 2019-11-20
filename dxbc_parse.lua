@@ -37,7 +37,7 @@ local hex = C(_hex)/function(...)
         return ...
     end
 
-local variable = (_alpnum + S'_')^1
+local variable = (_alpnum + S'_$')^1
 
 local comment = P'//' * C(P(1-P'\n')^0) / function(comment)
         return {comment = comment}
@@ -230,7 +230,7 @@ return function(input)
                 idx_output = idx
             end
         end
-        local cbuff_data = process_cbuffer(table.concat(comms, '\n', idx_cbuffer+1, idx_binding-1))
+        local cbuff_data = idx_cbuffer and process_cbuffer(table.concat(comms, '\n', idx_cbuffer+1, idx_binding-1)) or {}
 
         local binding_data = process_binding(comms, idx_binding+3, idx_input-1)
         local input_data = process_input(comms, idx_input+3, idx_output-1)

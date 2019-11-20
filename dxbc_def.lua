@@ -8,7 +8,7 @@ local var_mask_map = {x=0, y=4,z=8,w=12}
 local bind_map
 
 function m:init(parse_data)
-    
+
     local res_data = parse_data[1]
 
     local var_mask =  {'x', 'y', 'z', 'w'}
@@ -216,7 +216,7 @@ m.shader_def = {
         else
             ret = _format('%s + %s', nameb, namec)
         end
-        if op_args._sat then 
+        if op_args._sat then
             return _format('%s = saturate(%s)', namea, ret)
         else
             return _format('%s = %s', namea, ret)
@@ -265,7 +265,7 @@ m.shader_def = {
                     n_dest, n_texture, n_addr, com_addr:sub(1, 2), com_texture, n_sampler)
     end,
     ['ld_indexable.*'] = function(op_args, dest, addr, texture)
-        -- load texture data 
+        -- load texture data
         --  dest = texture[addr]
         local n_dest = get_var_name(dest)
         local n_addr, com_addr = get_var_name(addr, nil, true)
@@ -322,14 +322,14 @@ m.shader_def = {
     end,
     ['[di]?eq'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
-        local nameb = get_var_name(b)
-        local namec = get_var_name(c)
+        local nameb = get_var_name(b, a)
+        local namec = get_var_name(c, a)
         return _format('%s = %s == %s', namea, nameb, namec)
     end,
     ['[di]?ne'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
-        local nameb = get_var_name(b)
-        local namec = get_var_name(c)
+        local nameb = get_var_name(b, a)
+        local namec = get_var_name(c, a)
         return _format('%s = %s != %s', namea, nameb, namec)
     end,
     ['not'] = function(op_args, a, b)
@@ -339,14 +339,14 @@ m.shader_def = {
     end,
     ['[uid]?lt'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
-        local nameb = get_var_name(b)
-        local namec = get_var_name(c)
+        local nameb = get_var_name(b, a)
+        local namec = get_var_name(c, a)
         return _format('%s = %s < %s', namea, nameb, namec)
     end,
     ['[uid]?ge'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
-        local nameb = get_var_name(b)
-        local namec = get_var_name(c)
+        local nameb = get_var_name(b, a)
+        local namec = get_var_name(c, a)
         return _format('%s = %s >= %s', namea, nameb, namec)
     end,
     ['[ui]?shl'] = function(op_args, a, b, c)
@@ -514,6 +514,20 @@ m.shader_def = {
     ['dcl_.*'] = false,
 }
 
+-- sm5
+m.shader_def5 = {
+    bfi = function(op_args, width, offset, src2, src3)
+        return _format([[
+            bitmask = (((1 << %s)-1) << %s) & 0xffffffff
+            dest = ((%s << %s) & bitmask) | (%s & ~bitmask)]], width, offset, src2, offset, src3)
+    end,
+    bfrev = function(op_args, dest, src)
+        return _format('%s = reverse_bit(%s) ', dest, src)
+    end,
+    countbits = function(op_args, dest, src)
+        return _format('%s = countbits(%s)', dest, src)
+    end,
+}
 
 
 m.modifier_def = {

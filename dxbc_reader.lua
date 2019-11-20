@@ -113,6 +113,10 @@ local function append(msg)
     translate[#translate+1] = msg
 end
 
+if DEBUG == 't' then
+    translate[#translate+1] = DataDump(res_def.binding_data)
+end
+
 ------------  CBUFFER DEFINE
 for _, cbuff in pairs(res_def.cbuff_data) do
     append('class ' .. cbuff.cbuffer_name .. '{')
@@ -151,7 +155,7 @@ while idx <= #parse_data do
     local command = parse_data[idx]
     if command.op then
         local op_name, op_param = get_op(command.op)
-           
+
         if op_name then
             local op_func = dxbc_def.shader_def[op_name]
             if op_func then
@@ -166,12 +170,16 @@ while idx <= #parse_data do
 
                 if DEBUG then
                     append('')
-                    translate[#translate+1] = string.rep('\t', #blocks) .. DataDump(command)
+                    if DEBUG == 't' then
+                        translate[#translate+1] = string.rep('\t', #blocks) .. DataDump(command)
+                    end
                     append(string.rep('\t', #blocks) .. command.src)
                 end
-                append(string.format('%s%s', string.rep('\t', #blocks), op_str))
+                local last_gram = op_str:sub(#op_str)
+                local end_block = (last_gram == '}' or last_gram == '{' ) and '' or ';'
+                append(string.format('%s%s%s', string.rep('\t', #blocks), op_str, end_block))
                 --print(translate[#translate])
-                                
+
                 if BLOCK_DEF[block_tag] then
                     table.insert(blocks, BLOCK_DEF[block_tag])
                 end
