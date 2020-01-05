@@ -7,11 +7,18 @@ local argparse = require 'argparse'
 local arg_parse = argparse('dxbc_reader')
 
 arg_parse:argument('input', 'input file')
-arg_parse:option('-o --output', 'output file', 'dxbc.out')
+arg_parse:option('-o --output', 'output file', false)
 arg_parse:option('-d --debug', 'print debug info', false)
 arg_parse:option('-p --print', 'std print', true)
 
 local args = arg_parse:parse()
+
+if not args.input then
+    args.input = 'fragment4.txt'
+end
+if not args.output then
+    args.output = args.input .. '.hlsl'
+end
 
 if args.print == 'false' then
     args.print = false
@@ -23,7 +30,7 @@ local parser = require 'dxbc_parse'
 local dxbc_def = require 'dxbc_def'
 
 --local file_name = 'fragment.dxbc'
-local file_name = args.input or 'fragment4.txt'
+local file_name = args.input
 
 local _format = string.format
 
