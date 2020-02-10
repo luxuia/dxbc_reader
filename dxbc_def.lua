@@ -254,6 +254,11 @@ m.shader_def = {
             return _format('%s = sin(%s); %s=cos(%s)', namea, nameb, namea, namec)
         end
     end,
+    ['log'] = function(op_args, a, b, c)
+        local namea = get_var_name(a)
+        local nameb = get_var_name(b, a)
+        return _format('%s = log2(%s)', namea, nameb)
+    end,
     ['sample.*'] = function(op_args, dest, addr, texture, sampler)
         -- load texture data with sampler
         -- dest = (texture[addr]+texture[addr+1])/2 -- example: linear sampler

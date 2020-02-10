@@ -1,0 +1,95 @@
+class $Globals{
+	float4	edgeWeight0;
+	float4	edgeWeight1;
+}
+class INPUT {
+	SV_Position;
+	TEXCOORD1;
+	TEXCOORD2;
+	TEXCOORD3;
+	TEXCOORD4;
+	TEXCOORD5;
+}
+class OUT {
+	SV_Target;
+}
+r0.xyzw = tex2D(tex1, in.TEXCOORD1.xy).xyzw //sample_state tex1Sampler;
+r0.z = r0.z*255.0 + 0.5;
+r0.z = floor(r0.z) //ftoi;
+r0.z = r0.z & 1 ;
+r0.z = 0 < r0.z;
+if (r0.z == 0) {
+	out.SV_Target.xyzw = float4(0, 0, 0, 0);
+	return;
+}
+r1.xyzw = tex2D(tex0, in.TEXCOORD1.xy).xyzw //sample_state tex0Sampler;
+r2.xyzw = tex2D(tex0, in.TEXCOORD2.xy).xyzw //sample_state tex0Sampler;
+r3.xyzw = tex2D(tex0, in.TEXCOORD2.zw).xyzw //sample_state tex0Sampler;
+r4.xyzw = tex2D(tex0, in.TEXCOORD3.xy).xyzw //sample_state tex0Sampler;
+r5.xyzw = tex2D(tex0, in.TEXCOORD3.zw).xyzw //sample_state tex0Sampler;
+r6.xyzw = tex2D(tex0, in.TEXCOORD4.xy).xyzw //sample_state tex0Sampler;
+r7.xyzw = tex2D(tex0, in.TEXCOORD4.zw).xyzw //sample_state tex0Sampler;
+r8.xyzw = tex2D(tex0, in.TEXCOORD5.xy).xyzw //sample_state tex0Sampler;
+r9.xyzw = tex2D(tex0, in.TEXCOORD5.zw).xyzw //sample_state tex0Sampler;
+r10.xyz = tex2D(tex2, in.TEXCOORD1.xy).xyz //sample_state tex2Sampler;
+r2.xyzw = r1.xyzw-r2.xyzw;
+r3.xyzw = r1.xyzw-r3.xyzw;
+r2.xyzw = abs(r2.xyzw) + abs(r3.xyzw);
+r3.xyzw = r1.xyzw-r4.xyzw;
+r4.xyzw = r1.xyzw-r5.xyzw;
+r3.xyzw = abs(r3.xyzw) + abs(r4.xyzw);
+r2.xyzw = r2.xyzw + r3.xyzw;
+r3.xyzw = r1.xyzw-r6.xyzw;
+r4.xyzw = r1.xyzw-r7.xyzw;
+r3.xyzw = abs(r3.xyzw) + abs(r4.xyzw);
+r4.xyzw = r1.xyzw-r8.xyzw;
+r5.xyzw = r1.xyzw-r9.xyzw;
+r4.xyzw = abs(r4.xyzw) + abs(r5.xyzw);
+r3.xyzw = r3.xyzw + r4.xyzw;
+r2.xyzw = r2.xyzw + r3.xyzw;
+r0.z = saturate(r0.w * $Globals.edgeWeight1.z);
+r0.z = saturate(r0.z*1.3333-0.33325);
+r1.x = -$Globals.edgeWeight1.x + $Globals.edgeWeight1.y;
+r1.x = r0.w*r1.x + $Globals.edgeWeight1.x;
+r3.w = -r2.w*0.5 + r1.x;
+r3.xyz = r2.xyz*float3(1.0, 1.0, -0.5) + float3(0.0, 0.0, 0.25);
+r2.xyzw = saturate(r3.xyzw * float4(5.0, 128.0, 256.0, 256.0));
+r2.y = r0.x * r2.y;
+r1.xy = -r2.xy + float2(1.0, 1.0);
+r0.x = r1.y * r1.x;
+r1.x = r2.w * r2.z;
+r2.xyz = tex2D(tex2, in.TEXCOORD2.xy).xyz //sample_state tex2Sampler;
+r3.xyz = tex2D(tex2, in.TEXCOORD2.zw).xyz //sample_state tex2Sampler;
+r4.xyz = tex2D(tex2, in.TEXCOORD3.xy).xyz //sample_state tex2Sampler;
+r5.xyz = tex2D(tex2, in.TEXCOORD3.zw).xyz //sample_state tex2Sampler;
+r2.w = tex2D(tex1, in.TEXCOORD2.xy).w //sample_state tex1Sampler;
+r3.w = tex2D(tex1, in.TEXCOORD2.zw).w //sample_state tex1Sampler;
+r4.w = tex2D(tex1, in.TEXCOORD3.xy).w //sample_state tex1Sampler;
+r5.w = tex2D(tex1, in.TEXCOORD3.zw).w //sample_state tex1Sampler;
+r6.xyzw = -$Globals.edgeWeight0.xxxz + $Globals.edgeWeight0.yyyw;
+r6.xyzw = r0.wwww*r6.xyzw + $Globals.edgeWeight0.xxxz;
+r10.w = r0.w;
+r2.xyzw = -r2.xyzw + r10.xyzw;
+r2.xyzw = r6.zzzw >= abs(r2.xyzw);
+r2.xyzw = r2.xyzw & float4(0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000) // 0x3f800000=1.0, maybe means: if (r2.xyzw==0xFFFFFFFF) r2.xyzw=1.0;
+r3.xyzw = -r3.xyzw + r10.xyzw;
+r3.xyzw = r6.zzzw >= abs(r3.xyzw);
+r3.xyzw = r3.xyzw & float4(0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000) // 0x3f800000=1.0, maybe means: if (r3.xyzw==0xFFFFFFFF) r3.xyzw=1.0;
+r2.xyzw = r2.xyzw * r3.xyzw;
+r3.xyzw = -r4.xyzw + r10.xyzw;
+r3.xyzw = r6.zzzw >= abs(r3.xyzw);
+r3.xyzw = r3.xyzw & float4(0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000) // 0x3f800000=1.0, maybe means: if (r3.xyzw==0xFFFFFFFF) r3.xyzw=1.0;
+r2.xyzw = r2.xyzw * r3.xyzw;
+r3.xyzw = -r5.xyzw + r10.xyzw;
+r3.xyzw = r6.xyzw >= abs(r3.xyzw);
+r3.xyzw = r3.xyzw & float4(0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000) // 0x3f800000=1.0, maybe means: if (r3.xyzw==0xFFFFFFFF) r3.xyzw=1.0;
+r2.xyzw = r2.xyzw * r3.xyzw;
+r1.y = r2.y * r2.x;
+r1.y = r2.z * r1.y;
+r1.x = r1.y * r1.x;
+r0.x = r0.x * r2.w;
+r1.x = r0.x*r1.x-r0.x;
+out.SV_Target.z = r0.z*r1.x + r0.x;
+out.SV_Target.x = r1.w;
+out.SV_Target.yw = r0.yw;
+return;
