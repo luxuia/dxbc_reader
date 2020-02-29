@@ -48,7 +48,11 @@ local function any_patt(expect)
 end
 
 -- add|dcl_resource_texture2d (float,float,float,float)|sample_indexable(texture2d)(float,float,float,float)
-local op = C(variable * (space^-1 * (P'('*any_patt(')')*P')') + ' linear' + ' noperspective')^0)
+local op = C(variable * (space^-1 * (P'('*any_patt(')')*P')')
+    + ' linear'
+    + ' noperspective'
+    + ' constant'
+    + ' linearcentroid')^0)
 
 local _negtive = C('-') / function (neg)
         if neg then
