@@ -121,7 +121,7 @@ local function append(msg)
 end
 
 if DEBUG == 't' then
-    translate[#translate+1] = DataDump(res_def.binding_data)
+    append(DataDump(res_def.binding_data))
 end
 
 ------------  CBUFFER DEFINE
@@ -158,6 +158,8 @@ end
 append('}')
 ------------ CBUFFER DEFINE END
 
+append("void main(INPUT in) {")
+blocks[1] = {close = {}}
 while idx <= #parse_data do
     local command = parse_data[idx]
     if command.op then
@@ -168,7 +170,7 @@ while idx <= #parse_data do
             if op_func then
                 pre_process_command(command)
                 op_param = op_param and arr2dic( op_param) or {}
-                local op_str, block_tag = op_func(op_param, table.unpack(   command.args))
+                local op_str, block_tag = op_func(op_param, table.unpack(command.args))
 
                 local last_block = blocks[#blocks]
                 if last_block and last_block.close[block_tag] then
@@ -178,14 +180,13 @@ while idx <= #parse_data do
                 if DEBUG then
                     append('')
                     if DEBUG == 't' then
-                        translate[#translate+1] = string.rep('\t', #blocks) .. DataDump(command)
+                        append(string.rep('\t', #blocks) .. DataDump(command))
                     end
                     append(string.rep('\t', #blocks) .. command.src)
                 end
                 local last_gram = op_str:sub(#op_str)
                 local end_block = (last_gram == '}' or last_gram == '{' ) and '' or ';'
                 append(string.format('%s%s%s', string.rep('\t', #blocks), op_str, end_block))
-                --print(translate[#translate])
 
                 if BLOCK_DEF[block_tag] then
                     table.insert(blocks, BLOCK_DEF[block_tag])
@@ -198,6 +199,7 @@ while idx <= #parse_data do
     end
     idx = idx+1
 end
+append("}")
 
 local ret = table.concat(translate, '\n')
 if args.print then
