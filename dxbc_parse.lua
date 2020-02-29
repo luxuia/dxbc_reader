@@ -218,23 +218,40 @@ return function(input)
                 end
             end
         end
-        local idx_cbuffer, idx_binding, idx_input, idx_output
+        local block_data = {}
+        local set_block_data = function(block_name, idx)
+            for _, v in pairs(block_data) do
+                if not v.last_idx then
+                    v.last_idx = idx-1
+                    break
+                end
+            end
+
+            block_data[block_name] = {idx = idx}
+        end
         for idx=1, #comms do
             if comms[idx]:find('Buffer Definitions:') then
-                idx_cbuffer = idx
+                set_block_data('idx_cbuffer', idx)
             elseif comms[idx]:find('Resource Bindings:') then
-                idx_binding = idx
+                set_block_data('idx_binding', idx)
             elseif comms[idx]:find('Input signature:') then
-                idx_input = idx
+                set_block_data('idx_input', idx)
             elseif comms[idx]:find('Output signature:') then
-                idx_output = idx
+                set_block_data('idx_output', idx)
             end
         end
-        local cbuff_data = idx_cbuffer and process_cbuffer(table.concat(comms, '\n', idx_cbuffer+1, idx_binding-1)) or {}
+        for _, v in pairs(block_data) do
+            if not v.last_idx then
+                v.last_idx = #comms
+            end
+        end
+        local cbuff_data = block_data.idx_cbuffer and process_cbuffer(table.concat(comms, '\n', block_data.idx_cbuffer.idx+1, block_data.idx_cbuffer.last_idx)) or {}
 
-        local binding_data = process_binding(comms, idx_binding+3, idx_input-1)
-        local input_data = process_input(comms, idx_input+3, idx_output-1)
-        local output_data = process_output(comms, idx_output+3, #comms)
+        local binding_data = block_data.idx_binding and process_binding(comms, block_data.idx_binding.idx+3, block_data.idx_binding.last_idx) or {}
+        local input_data = block_data.idx_input and process_input(comms, block_data.idx_input.idx+3, block_data.idx_input.last_idx) or {}
+        local output_data = block_data.idx_output and process_output(comms, block_data.idx_output.idx+3, block_data.idx_output.last_idx) or {}
+
+        --print(DataDump(block_data))
 
         table.insert(ret, 1, {
                 cbuff_data = cbuff_data,
