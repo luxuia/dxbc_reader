@@ -278,16 +278,7 @@ m.shader_def = {
         return _format('%s = tex2D(%s, %s.%s).%s //ld_indexable',
                     n_dest, n_texture, n_addr, com_addr:sub(1, 2), com_texture)
     end,
-    ['ld_structured.*'] = function(op_args, dest, addr, offset, texture)
-        -- load buffer data
-        -- dest = texture[addr+offset]
-        local n_dest = get_var_name(dest)
-        local n_addr, com_addr = get_var_name(addr, nil, true)
-        local n_offset, com_offset = get_var_name(offset, nil, true)
-        local n_texture, com_texture = get_var_name(texture, dest, true)
-        return _format('%s = tex2D(%s, %s.%s+%s) //ld_structured',
-                    n_dest, n_texture, n_addr, com_addr:sub(1, 2), n_offset, com_texture)
-    end,
+
     ['[ui]?mad(.*)'] = function(op_args, a, b, c, d)
         local namea = get_var_name(a)
         local nameb = get_var_name(b, a)
@@ -514,8 +505,10 @@ m.shader_def = {
         end
         return 'return'
     end,
+
     ['vs_%d_%d'] = false,
     ['ps_%d_%d'] = false,
+    ['cs_%d_%d'] = false,
     ['dcl_.*'] = false,
 }
 
@@ -547,6 +540,40 @@ m.modifier_def = {
     end,
 }
 
+m.shader_def_cs = {
+    ['ld_structured.*'] = function(op_args, dest, addr, offset, texture)
+        -- load buffer data
+        -- dest = texture[addr+offset]
+        local n_dest = get_var_name(dest)
+        local n_addr, com_addr = get_var_name(addr, nil, true)
+        local n_offset, com_offset = get_var_name(offset, nil, true)
+        local n_texture, com_texture = get_var_name(texture, dest, true)
+        return _format('%s = %s[%s.%s][%s].%s //ld_structured',
+                    n_dest, n_texture, n_addr, com_addr:sub(1, 2), n_offset, com_texture)
+    end,
+    ['store_structured'] = function(op_args, a, b, c, d)
+        local namea, a_com = get_var_name(a, nil, true)
+        local nameb = get_var_name(b)
+        local namec = get_var_name(c)
+        local named = get_var_name(d, a)
+        return _format('%s[%s][%s].%s = %s // store_structured', namea, nameb, namec, a_com, named)
+    end,
+    ['store_uav_typed'] = function(op_args, a, b, c)
+        local namea = get_var_name(a)
+        local nameb = get_var_name(b)
+        local namec = get_var_name(c)
+        return _format('%s[%s] = %s', namea, nameb, namec)
+    end,
+    ['sync(.*)'] = function(op_args)
+        return 'sync'
+    end,
+}
+
+for _, defs in pairs({m.shader_def5, m.shader_def_cs}) do
+    for key, func in pairs(defs) do
+        m.shader_def[key] = func
+    end
+end
 
 
 return m

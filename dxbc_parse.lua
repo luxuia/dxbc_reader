@@ -183,12 +183,14 @@ local function process_input(list, start_idx, end_idx)
     local data = {}
     for i=start_idx, end_idx do
         local tokens = split(list[i])
-        data[#data+1] = {
-            name = tokens[1],
-            bind = 'v' .. tokens[4],
-            mask = tokens[3],
-            register = tokens[4],
-        }
+        if #tokens >= 4 then
+            data[#data+1] = {
+                name = tokens[1],
+                bind = 'v' .. tokens[4],
+                mask = tokens[3],
+                register = tokens[4],
+            }
+        end
     end
     return data
 end
@@ -197,12 +199,14 @@ local function process_output(list, start_idx, end_idx)
     local data = {}
     for i=start_idx, end_idx do
         local tokens = split(list[i])
-        data[#data+1] = {
-            name = tokens[1],
-            bind = 'o' .. tokens[4],
-            mask = tokens[3],
-            register = tokens[4],
-        }
+        if #tokens >= 4 then
+            data[#data+1] = {
+                name = tokens[1],
+                bind = 'o' .. tokens[4],
+                mask = tokens[3],
+                register = tokens[4],
+            }
+        end
     end
     return data
 end
