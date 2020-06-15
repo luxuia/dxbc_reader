@@ -97,7 +97,7 @@ local _abs = C'|' / function()
 local var = (_negtive^-1*_vector + _negtive^-1 * _abs^-1
                 * _var_name * _var_idx^-1 * _var_suffix^-1 * _abs^-1) / merge_tbl
 
-local args = var * (space^0*P(",")*space^0 *var)^0
+local args = var * (space^0*P(",")*space^0 *var + space^0*P("|")*space^0 *var)^0
 
 local command = C(op * space ^0 * args^-1) / function(...)
         local data = {...}
@@ -112,7 +112,7 @@ local command = C(op * space ^0 * args^-1) / function(...)
         }
     end
 
---print(DataDump({lpeg.match(command, 'move x0[1].x, xxx')}))
+--print(DataDump({lpeg.match(command, 'vs_5_0')}))
 
 local trunk = ((comment+command)*pass)^0
 
@@ -226,6 +226,7 @@ return function(input)
                 end
             end
         end
+        --print(DataDump(ret))
         local block_data = {}
         local set_block_data = function(block_name, idx)
             for _, v in pairs(block_data) do
