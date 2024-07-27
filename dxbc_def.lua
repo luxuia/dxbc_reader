@@ -37,6 +37,7 @@ function m:init(parse_data)
         local name = bind.name
         if name == 'TEXCOORD' then
             name = name .. bind.register
+            bind.name = name
         end
         bind_map[bind.bind] = {name = 'in.' .. name, desc = bind}
     end
@@ -113,6 +114,7 @@ local function get_var_name(register, swizzle, sep_suffix)
     end
     local suffix
     local suffix_dot = '.'
+    print('---------', DataDump(register), DataDump(bind_data))
     if bind_data then
         name = bind_data.name
         local desc = bind_data.desc
