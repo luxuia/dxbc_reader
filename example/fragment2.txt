@@ -125,7 +125,7 @@ dcl_resource_texture2d (float,float,float,float) t5
 dcl_resource_texture2d (float,float,float,float) t7
 dcl_resource_texture2d (float,float,float,float) t8
 dcl_resource_texture2d (float,float,float,float) t9
-dcl_input_ps linear v1.xyzw
+dcl_input_ps linear centroid v1.xyzw
 dcl_input_ps linear v2.w
 dcl_input_ps linear v3.xyz
 dcl_input_ps linear v4.xyz

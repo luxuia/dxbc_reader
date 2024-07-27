@@ -52,7 +52,8 @@ local op = C(variable * (space^-1 * (P'('*any_patt(')')*P')')
     + ' linear'
     + ' noperspective'
     + ' constant'
-    + ' linearcentroid')^0)
+    + ' linearcentroid'
+    + ' centroid')^0)
 
 local _negtive = C('-') / function (neg)
         if neg then

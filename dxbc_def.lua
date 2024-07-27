@@ -114,7 +114,7 @@ local function get_var_name(register, swizzle, sep_suffix)
     end
     local suffix
     local suffix_dot = '.'
-    print('---------', DataDump(register), DataDump(bind_data))
+    -- print('---------', DataDump(register), DataDump(bind_data))
     if bind_data then
         name = bind_data.name
         local desc = bind_data.desc
@@ -573,7 +573,7 @@ m.shader_def_cs = {
     end,
 }
 
-for _, defs in pairs({m.shader_def5, m.shader_def_cs}) do
+for _, defs in pairs({m.shader_def5, m.shader_def_cs, m.modifier_def}) do
     for key, func in pairs(defs) do
         m.shader_def[key] = func
     end
