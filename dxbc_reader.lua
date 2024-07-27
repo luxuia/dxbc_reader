@@ -118,6 +118,8 @@ local res_def = parse_data[1]
 
 local function append(msg)
     translate[#translate+1] = msg
+
+    print(msg)
 end
 
 if DEBUG == 't' then
@@ -170,6 +172,12 @@ while idx <= #parse_data do
             if op_func then
                 pre_process_command(command)
                 op_param = op_param and arr2dic( op_param) or {}
+                if DEBUG then
+                    append('')
+                    if DEBUG == 't' then
+                        append(string.rep('\t', #blocks) .. DataDump(command))
+                    end
+                end
                 local op_str, block_tag = op_func(op_param, table.unpack(command.args))
 
                 local last_block = blocks[#blocks]
@@ -178,10 +186,6 @@ while idx <= #parse_data do
                 end
 
                 if DEBUG then
-                    append('')
-                    if DEBUG == 't' then
-                        append(string.rep('\t', #blocks) .. DataDump(command))
-                    end
                     append(string.rep('\t', #blocks) .. command.src)
                 end
                 local last_gram = op_str:sub(#op_str)

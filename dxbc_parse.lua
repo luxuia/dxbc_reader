@@ -94,8 +94,9 @@ local _abs = C'|' / function()
     end
 
 -- TODO abs process
-local var = (_negtive^-1*_vector + _negtive^-1 * _abs^-1
-                * _var_name * _var_idx^-1 * _var_suffix^-1 * _abs^-1) / merge_tbl
+-- -l(1.0) / -| xxx[1].x |
+local var = (_negtive^-1*_vector + _negtive^-1 * _abs^-1 * space ^-1
+                * _var_name * _var_idx^-1 * _var_suffix^-1 * space^-1 * _abs^-1) / merge_tbl
 
 local args = var * (space^0*P(",")*space^0 *var + space^0*P("|")*space^0 *var)^0
 

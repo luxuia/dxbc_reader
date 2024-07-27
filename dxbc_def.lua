@@ -1,4 +1,6 @@
 local _format = string.format
+local DataDump = require 'table_dumper'
+
 
 local m = {}
 
@@ -331,7 +333,7 @@ m.shader_def = {
     ['not'] = function(op_args, a, b)
         local namea = get_var_name(a)
         local nameb = get_var_name(b)
-        return _format('%s = !%s', namea, nameb, namec)
+        return _format('%s = !%s', namea, nameb)
     end,
     ['[uid]?lt'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
