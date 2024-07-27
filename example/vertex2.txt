@@ -216,6 +216,7 @@ mul r3.x, r0.w, r0.z
 mul r8.xz, r3.yyxy, r4.xxyx
 dp2 r0.z, r4.xyxx, r4.xyxx
 sqrt r0.z, r0.z
+sincos r0.z, r0.z, r1.z
 min r8.y, r0.z, l(1.000000)
 mul r3.xyz, r3.xxzx, r8.xyzx
 mul r2.xyz, r2.xxzx, r3.xyzx

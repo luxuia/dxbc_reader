@@ -251,9 +251,9 @@ m.shader_def = {
         local nameb = get_var_name(b, a)
         local namec = get_var_name(c, a)
         if op_args._sat then
-            return _format('%s = saturate(sin(%s)); %s = saturate(cos(%s))', namea, nameb, namea, namec)
+            return _format('%s = saturate(sin(%s)); %s = saturate(cos(%s))', nameb, namea, namec, namea)
         else
-            return _format('%s = sin(%s); %s=cos(%s)', namea, nameb, namea, namec)
+            return _format('%s = sin(%s); %s=cos(%s)', nameb, namea, namec, namea)
         end
     end,
     ['log'] = function(op_args, a, b, c)
