@@ -26,6 +26,10 @@
 
     .\lua\lua.exe run_tests.lua
 
+**[SM5 支持矩阵]**
+
+    见 [SM5_SUPPORT.md](SM5_SUPPORT.md)：HLSL Shader Model 5 指令与工程支持对照。
+
 translate DXBC code like:
 
 ```c
