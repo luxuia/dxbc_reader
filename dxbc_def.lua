@@ -263,24 +263,50 @@ m.shader_def = {
         local nameb = get_var_name(b, a)
         return _format('%s = log2(%s)', namea, nameb)
     end,
-    ['sample.*'] = function(op_args, dest, addr, texture, sampler)
-        -- load texture data with sampler
-        -- dest = (texture[addr]+texture[addr+1])/2 -- example: linear sampler
+    ['sample.*'] = function(op_args, dest, addr, texture, sampler, e1, e2)
         local n_dest = get_var_name(dest)
         local n_addr, com_addr = get_var_name(addr, nil, true)
         local n_texture, com_texture = get_var_name(texture, dest, true)
         local n_sampler = get_var_name(sampler)
-        return _format('%s = tex2D(%s, %s.%s).%s //sample_state %s',
-                    n_dest, n_texture, n_addr, com_addr:sub(1, 2), com_texture, n_sampler)
+        local op = op_args._op or ''
+        local uv = n_addr .. (com_addr and ('.' .. com_addr:sub(1, 2)) or '')
+        local com = com_texture or 'xyzw'
+        local tex_type = op:find('texture2darray') and 'Texture2DArray' or op:find('texture3d') and 'Texture3D' or 'Texture2D'
+        local type_comment = (tex_type ~= 'Texture2D') and (' //' .. tex_type) or ''
+        if op:find('sample_c_lz') then
+            local n_comp = e1 and get_var_name(e1) or '0'
+            return _format('%s = %s.SampleCmpLevelZero(%s, %s, %s).%s //sample_c_lz comp=%s%s',
+                n_dest, n_texture, n_sampler, uv, n_comp, com, n_comp, type_comment)
+        elseif op:find('sample_c') then
+            local n_comp = e1 and get_var_name(e1) or '0'
+            return _format('%s = %s.SampleCmp(%s, %s, %s).%s //sample_c comp=%s%s',
+                n_dest, n_texture, n_sampler, uv, n_comp, com, n_comp, type_comment)
+        elseif op:find('sample_l') then
+            local lod = e1 and get_var_name(e1) or '0'
+            return _format('%s = %s.SampleLevel(%s, %s, %s).%s //sample_l lod=%s%s',
+                n_dest, n_texture, n_sampler, uv, lod, com, lod, type_comment)
+        elseif op:find('sample_b') then
+            local bias = e1 and get_var_name(e1) or '0'
+            return _format('%s = %s.SampleBias(%s, %s, %s).%s //sample_b bias=%s%s',
+                n_dest, n_texture, n_sampler, uv, bias, com, bias, type_comment)
+        elseif op:find('sample_d') then
+            local dx = e1 and get_var_name(e1) or '0'
+            local dy = e2 and get_var_name(e2) or '0'
+            return _format('%s = %s.SampleGrad(%s, %s, %s, %s).%s //sample_d%s',
+                n_dest, n_texture, n_sampler, uv, dx, dy, com, type_comment)
+        else
+            return _format('%s = %s.Sample(%s, %s.%s).%s //sample %s%s',
+                n_dest, n_texture, n_sampler, n_addr, com_addr and com_addr:sub(1, 2) or 'xy', com, n_sampler, type_comment)
+        end
     end,
     ['ld_indexable.*'] = function(op_args, dest, addr, texture)
-        -- load texture data
-        --  dest = texture[addr]
         local n_dest = get_var_name(dest)
         local n_addr, com_addr = get_var_name(addr, nil, true)
         local n_texture, com_texture = get_var_name(texture, dest, true)
-        return _format('%s = tex2D(%s, %s.%s).%s //ld_indexable',
-                    n_dest, n_texture, n_addr, com_addr:sub(1, 2), com_texture)
+        local op = op_args._op or ''
+        local tex_type = op:find('texture2darray') and 'Texture2DArray' or op:find('texture3d') and 'Texture3D' or op:find('structured') and 'StructuredBuffer' or 'Texture2D'
+        return _format('%s = %s.Load(%s.%s).%s //ld_indexable %s',
+            n_dest, n_texture, n_addr, com_addr and com_addr:sub(1, 2) or 'xy', com_texture or 'xyzw', tex_type)
     end,
 
     ['[ui]?mad(.*)'] = function(op_args, a, b, c, d)
@@ -384,6 +410,20 @@ m.shader_def = {
     end,
     ['endif'] = function(op_args, a)
         return '}', 'endif'
+    end,
+    ['switch'] = function(op_args, a)
+        local namea = get_var_name(a)
+        return _format('switch ((int)%s) {', namea), 'switch'
+    end,
+    ['case'] = function(op_args, a)
+        local namea = get_var_name(a)
+        return _format('case %s:', namea), 'case'
+    end,
+    ['default'] = function(op_args)
+        return 'default:', 'case'
+    end,
+    ['endswitch'] = function(op_args)
+        return '}', 'endswitch'
     end,
     ['break(.*)'] = function(op_args, a, b)
         if not a then
@@ -518,16 +558,24 @@ m.shader_def = {
 
 -- sm5
 m.shader_def5 = {
-    bfi = function(op_args, width, offset, src2, src3)
-        return _format([[
-            bitmask = (((1 << %s)-1) << %s) & 0xffffffff
-            dest = ((%s << %s) & bitmask) | (%s & ~bitmask)]], width, offset, src2, offset, src3)
+    bfi = function(op_args, dest, width, offset, src2, src3)
+        local n_dest = get_var_name(dest)
+        local n_width = get_var_name(width)
+        local n_offset = get_var_name(offset)
+        local n_src2 = get_var_name(src2)
+        local n_src3 = get_var_name(src3)
+        return _format('%s = (uint)(((%s << %s) & (((1u << %s) - 1u) << %s)) | (%s & ~(((1u << %s) - 1u) << %s))) //bfi',
+            n_dest, n_src2, n_offset, n_width, n_offset, n_src3, n_width, n_offset)
     end,
     bfrev = function(op_args, dest, src)
-        return _format('%s = reverse_bit(%s) ', dest, src)
+        local n_dest = get_var_name(dest)
+        local n_src = get_var_name(src)
+        return _format('%s = reversebits(%s) //bfrev', n_dest, n_src)
     end,
     countbits = function(op_args, dest, src)
-        return _format('%s = countbits(%s)', dest, src)
+        local n_dest = get_var_name(dest)
+        local n_src = get_var_name(src)
+        return _format('%s = countbits(%s) //countbits', n_dest, n_src)
     end,
 }
 

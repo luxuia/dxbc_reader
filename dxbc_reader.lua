@@ -184,6 +184,7 @@ local function run(options)
                 if op_func then
                     pre_process_command(command)
                     op_param = op_param and arr2dic(op_param) or {}
+                    op_param._op = command.op
                     if DEBUG then
                         append('')
                         if DEBUG == 't' then
@@ -215,7 +216,11 @@ local function run(options)
                         line_id = line_id + 1
                     end
                 else
-                    io.stderr:write(string.format("Warning: unimplemented op '%s'\n", command.op))
+                    -- dcl_*, vs_*, ps_*, cs_* 等声明：输出注释便于理解，不警告
+                    local decl_patterns = { ['dcl_.*'] = true, ['vs_%d_%d'] = true, ['ps_%d_%d'] = true, ['cs_%d_%d'] = true }
+                    if not decl_patterns[op_name] then
+                        io.stderr:write(string.format("Warning: unimplemented op '%s'\n", command.op))
+                    end
                     append(string.rep('\t', #blocks) .. '// ' .. (command.src or command.op))
                 end
             else
