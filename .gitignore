@@ -1,10 +1,15 @@
 # Compiled Lua sources
 luac.out
 
+# Test output
+test_output_*.hlsl
+dxbc.out
+
 # luarocks build files
 *.src.rock
 *.zip
 *.tar.gz
+.luarocks
 
 # Object files
 *.o

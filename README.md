@@ -1,14 +1,30 @@
-**[feature]**
+**dxbc_reader** - DXBC to readable HLSL translator
 
-    FULL sm4.0 support(little sm5.0)
+**[feature]**
     easy to use & easy to read
 
 **[usage]**
 
+    Run from project root directory:
+
     .\lua\lua.exe dxbc_reader.lua example/fragment.txt -o dxbc.out
 
-    -o output [output filename]
-    -d true   [enable debug info]
+    Options:
+    -o, --output   Output filename (default: {input}.hlsl)
+    -d, --debug    Enable debug info (use -d t for verbose dump)
+    -p, --print    Print result to stdout (default: true, use -p false to suppress)
+
+**[dependencies]**
+
+    - Lua 5.1+ (or LuaJIT)
+    - LPeg (lua-pattern-matching)
+    - argparse (included in lua/)
+
+    Optional: crypt (for lua/to_base64.lua, not required for main flow)
+
+**[testing]**
+
+    .\lua\lua.exe run_tests.lua
 
 translate DXBC code like:
 

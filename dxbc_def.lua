@@ -395,7 +395,7 @@ m.shader_def = {
         elseif op_args.c_nz then
             return _format('if (%s != 0) break', namea)
         else
-            assert(false, 'break with args' .. DataDump(op_args))
+            return _format('// UNSUPPORTED: break with args %s', DataDump(op_args))
         end
     end,
     ['loop'] = function(op_args)
@@ -414,7 +414,7 @@ m.shader_def = {
         elseif op_args.c_nz then
             return _format('if (%s != 0) continue', namea)
         else
-            assert(false, 'continue with args' .. DataDump(op_args))
+            return _format('// UNSUPPORTED: continue with args %s', DataDump(op_args))
         end
     end,
     rsq = function(op_args, a, b)
