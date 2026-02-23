@@ -146,9 +146,43 @@ local function run(options)
         translate[#translate + 1] = msg
     end
 
+    local function collect_compute_info()
+        local shader_model, thread_group, tgsm_list, indexable_list
+        for i = 2, #parse_data do
+            local cmd = parse_data[i]
+            if cmd.op then
+                if cmd.op:match('^cs_5_0') then
+                    shader_model = 'cs'
+                elseif cmd.op == 'dcl_thread_group' and cmd.args and #cmd.args >= 3 then
+                    local a, b, c = cmd.args[1], cmd.args[2], cmd.args[3]
+                    local x = (a and a.name and tonumber(a.name)) or (a and a.vals and a.vals[1]) or 1
+                    local y = (b and b.name and tonumber(b.name)) or (b and b.vals and b.vals[1]) or 1
+                    local z = (c and c.name and tonumber(c.name)) or (c and c.vals and c.vals[1]) or 1
+                    thread_group = { x = x, y = y, z = z }
+                elseif cmd.op == 'dcl_tgsm_structured' and cmd.args and #cmd.args >= 3 then
+                    local name = cmd.args[1] and cmd.args[1].name or 'g'
+                    local bytes = tonumber(cmd.args[2] and (cmd.args[2].vals and cmd.args[2].vals[1]) or cmd.args[2].name) or 16
+                    local stride = tonumber(cmd.args[3] and (cmd.args[3].vals and cmd.args[3].vals[1]) or cmd.args[3].name) or 16
+                    tgsm_list = tgsm_list or {}
+                    tgsm_list[#tgsm_list + 1] = { name = name, bytes = bytes, stride = stride }
+                elseif cmd.op == 'dcl_indexableTemp' and cmd.args and #cmd.args >= 2 then
+                    local a1, a2 = cmd.args[1], cmd.args[2]
+                    local name = a1 and a1.name or 'x'
+                    local count = (a1 and a1.idx and tonumber(a1.idx)) or 1
+                    local comps = tonumber(a2 and (a2.vals and a2.vals[1]) or a2.name) or 4
+                    indexable_list = indexable_list or {}
+                    indexable_list[#indexable_list + 1] = { name = name, count = count, comps = comps }
+                end
+            end
+        end
+        return shader_model, thread_group, tgsm_list, indexable_list
+    end
+
     if DEBUG == 't' then
         append(DataDump(res_def.binding_data))
     end
+
+    local shader_model, thread_group, tgsm_list, indexable_list = collect_compute_info()
 
     ------------  CBUFFER DEFINE
     for _, cbuff in pairs(res_def.cbuff_data) do
@@ -172,7 +206,28 @@ local function run(options)
     append('}')
     ------------ CBUFFER DEFINE END
 
-    append("void main(INPUT in) {")
+    if indexable_list then
+        for _, t in ipairs(indexable_list) do
+            local type_str = (t.comps == 1) and 'float' or _format('float%s', t.comps)
+            append(_format('%s %s[%d]; // dcl_indexableTemp', type_str, t.name, t.count))
+        end
+    end
+    if tgsm_list then
+        for _, t in ipairs(tgsm_list) do
+            local elems = math.floor(t.bytes / math.max(t.stride, 1))
+            local comps = math.floor(t.stride / 4)
+            local type_str = (comps == 1) and 'float' or _format('float%s', comps)
+            append(_format('groupshared %s %s[%d]; // %d bytes, %d stride', type_str, t.name, elems, t.bytes, t.stride))
+        end
+    end
+
+    local entry_sig
+    if shader_model == 'cs' and thread_group then
+        entry_sig = _format('[numthreads(%d, %d, %d)]\nvoid main(uint3 gid : SV_GroupID, uint3 tid : SV_GroupThreadID, uint3 did : SV_DispatchThreadID) {', thread_group.x, thread_group.y, thread_group.z)
+    else
+        entry_sig = "void main(INPUT in) {"
+    end
+    append(entry_sig)
     blocks[1] = {close = {}}
     while idx <= #parse_data do
         local command = parse_data[idx]

@@ -49,17 +49,28 @@ local example_list = {
     'example/nino/export_mat_p.txt',
 }
 
+local function is_compute_shader(path)
+    local f = io.open(path, 'r')
+    if not f then return false end
+    local content = f:read('*a')
+    f:close()
+    return content and content:find('cs_5_0')
+end
+
 local tests = {}
 for _, input_path in ipairs(example_list) do
     local f = io.open(input_path, 'r')
     if f then
         f:close()
         local name = input_path:gsub('.*/', ''):gsub('.*\\', '')
+        local expect = is_compute_shader(input_path)
+            and { "void main(", "numthreads", "groupshared" }
+            or { "void main(", "class INPUT", "class OUT" }
         tests[#tests + 1] = {
             name = name,
             input = input_path,
             output = "test_output_" .. name:gsub('%.txt$', '') .. ".hlsl",
-            expect_contains = { "void main(INPUT in)", "class INPUT", "class OUT" },
+            expect_contains = expect,
         }
     end
 end

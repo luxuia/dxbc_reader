@@ -105,7 +105,7 @@ local function get_vec_mask(vals, mask_register)
     return suffix
 end
 
-local function get_var_name(register, swizzle, sep_suffix)
+local function get_var_name(register, swizzle, sep_suffix, use_int)
     local name = register.name
     local bind_data = bind_map[name]
     local reg_com = register.suffix
@@ -159,6 +159,8 @@ local function get_var_name(register, swizzle, sep_suffix)
         local val_count = #vals
         if val_count == 1 then
             name = tostring(vals[1])
+        elseif use_int then
+            name = _format('uint%s(%s)', val_count, table.concat(vals, ', '))
         else
             name = _format('float%s(%s)', val_count, table.concat(vals, ', '))
         end
@@ -211,9 +213,10 @@ m.shader_def = {
         return _format('%s = %s ? %s : %s', n_dest, n_cond, n_a, n_b)
     end,
     ['[di]?add(.*)'] = function(op_args, a, b, c)
+        local use_int = (op_args._op or ''):match('^iadd')
         local namea = get_var_name(a)
-        local nameb = get_var_name(b, a)
-        local namec = get_var_name(c, a)
+        local nameb = get_var_name(b, a, nil, use_int)
+        local namec = get_var_name(c, a, nil, use_int)
         local ret
         if namec:sub(1,1) == '-' then
             ret = _format('%s%s', nameb, namec)
@@ -310,10 +313,11 @@ m.shader_def = {
     end,
 
     ['[ui]?mad(.*)'] = function(op_args, a, b, c, d)
+        local use_int = (op_args._op or ''):match('^imad')
         local namea = get_var_name(a)
-        local nameb = get_var_name(b, a)
-        local namec = get_var_name(c, a)
-        local named = get_var_name(d, a)
+        local nameb = get_var_name(b, a, nil, use_int)
+        local namec = get_var_name(c, a, nil, use_int)
+        local named = get_var_name(d, a, nil, use_int)
         local ret
         if named:sub(1,1) == '-' then
             ret = _format('%s%s', namec, named)
@@ -326,14 +330,16 @@ m.shader_def = {
             return _format('%s = %s*%s', namea, nameb, ret)
         end
     end,
-    ['[du]?div(.*)'] = function(op_args, a, b, c)
+    ['[du]?div(.*)'] = function(op_args, a, b, c, d)
         local namea = get_var_name(a)
         local nameb = get_var_name(b, a)
         local namec = get_var_name(c, a)
+        local extra = d and get_var_name(d)
+        local comment = (extra and (op_args._op or ''):match('^[ui]div')) and _format(' // 4th: %s', extra) or ''
         if op_args._sat then
-            return _format('%s = saturate(%s/%s)', namea, nameb, namec)
+            return _format('%s = saturate(%s/%s)%s', namea, nameb, namec, comment)
         else
-            return _format('%s = %s/%s', namea, nameb, namec)
+            return _format('%s = %s/%s%s', namea, nameb, namec, comment)
         end
     end,
     ['deriv_rt(.)(.*)'] = function(op_args, a, b)
@@ -378,13 +384,13 @@ m.shader_def = {
     ['[ui]?shl'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b)
-        local namec = get_var_name(c)
+        local namec = get_var_name(c, nil, nil, true)
         return _format('%s = %s << %s', namea, nameb, namec)
     end,
     ['[ui]?shr'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b)
-        local namec = get_var_name(c)
+        local namec = get_var_name(c, nil, nil, true)
         return _format('%s = %s >> %s', namea, nameb, namec)
     end,
     ['discard(.*)'] = function(op_args, a)
