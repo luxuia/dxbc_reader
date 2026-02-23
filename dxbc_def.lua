@@ -243,12 +243,18 @@ m.shader_def = {
         local namea = get_var_name(a)
         local nameb = get_var_name(b, a)
         local namec = get_var_name(c, a)
+        if op_args._sat then
+            return _format('%s = saturate(min(%s, %s))', namea, nameb, namec)
+        end
         return _format('%s = min(%s, %s)', namea, nameb, namec)
     end,
     ['[uid]?max'] = function(op_args, a, b, c)
         local namea = get_var_name(a)
         local nameb = get_var_name(b, a)
         local namec = get_var_name(c, a)
+        if op_args._sat then
+            return _format('%s = saturate(max(%s, %s))', namea, nameb, namec)
+        end
         return _format('%s = max(%s, %s)', namea, nameb, namec)
     end,
     ['sincos(.*)'] = function(op_args, a, b, c)
