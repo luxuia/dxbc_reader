@@ -94,8 +94,7 @@ local _abs = C'|' / function()
         return {abs=true}
     end
 
--- TODO abs process
--- -l(1.0) / -| xxx[1].x |
+-- |xxx| parses as abs, -|xxx| as -abs(xxx); get_var_name in dxbc_def outputs abs()
 local var = (_negtive^-1*_vector + _negtive^-1 * _abs^-1 * space ^-1
                 * _var_name * _var_idx^-1 * _var_suffix^-1 * space^-1 * _abs^-1) / merge_tbl
 
